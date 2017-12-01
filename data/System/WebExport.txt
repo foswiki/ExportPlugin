@@ -1,0 +1,2 @@
+%META:TOPICINFO{author="micha" date="1465284236" format="1.1" version="2"}%
+%META:PREFERENCE{name="VIEW_TEMPLATE" title="VIEW_TEMPLATE" type="Set" value="WebExportView"}%

@@ -1,0 +1,13 @@
+.jqPdfExportProgress {
+  position:relative;
+  height:1.5em;
+}
+.jqPdfExportProgress label {
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  text-align:center;
+  color:#222;
+  font-weight:bold;
+}

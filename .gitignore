@@ -1,0 +1,12 @@
+*.gz
+*,v
+*.swp
+/ExportPlugin.md5
+/ExportPlugin.sha1
+/ExportPlugin.tgz
+/ExportPlugin.zip
+/ExportPlugin.txt
+/ExportPlugin_installer
+/ExportPlugin_installer.pl
+pub/System/ExportPlugin/jquery.pdfexport.js
+pub/System/ExportPlugin/style.css

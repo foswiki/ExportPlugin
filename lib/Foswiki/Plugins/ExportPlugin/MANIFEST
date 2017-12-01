@@ -1,0 +1,20 @@
+!noci
+data/System/ExportPlugin.txt 0644
+data/System/WebExport.txt 0644
+data/System/WebExportViewTemplate.txt 0644
+lib/Foswiki/Plugins/ExportPlugin/Config.spec 0644
+lib/Foswiki/Plugins/ExportPlugin/DEPENDENCIES 0644
+lib/Foswiki/Plugins/ExportPlugin/Exporter.pm 0644
+lib/Foswiki/Plugins/ExportPlugin/Html.pm 0644
+lib/Foswiki/Plugins/ExportPlugin/JQueryPdfExport.pm 0644
+lib/Foswiki/Plugins/ExportPlugin/Pdf.pm 0644
+lib/Foswiki/Plugins/ExportPlugin.pm 0644
+pub/System/ExportPlugin/i18n/de.js 0644
+pub/System/ExportPlugin/i18n/en.js 0644
+pub/System/ExportPlugin/jquery.pdfexport.js 0644
+pub/System/ExportPlugin/jquery.pdfexport.js.gz 0644
+pub/System/ExportPlugin/jquery.pdfexport.uncompressed.js 0644
+pub/System/ExportPlugin/Makefile 0644
+pub/System/ExportPlugin/style.css 0644
+pub/System/ExportPlugin/style.css.gz 0644
+pub/System/ExportPlugin/style.uncompressed.css 0644
