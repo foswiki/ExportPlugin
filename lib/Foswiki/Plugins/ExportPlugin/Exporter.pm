@@ -388,10 +388,13 @@ sub renderHTML {
   $result =~ s/^%META:\w+{.*}%$//gm;
 
   # copy assets and rewrite urls
-  $result =~ s!(['"\(])($Foswiki::cfg{DefaultUrlHost}|https?://$host)?$pub/(.*?)(\1|\))!$1.$this->copyAsset($3).$4!ge;
+  my $depth = scalar(split(/[\/\.]/, $web)) + 1;
+  my $assetPrefix = "../" x $depth . "assets/";
+  $result =~ s!(['"\(])($Foswiki::cfg{DefaultUrlHost}|https?://$host)?$pub/(.*?)(\1|\))!$1.$assetPrefix.$this->copyAsset($3).$4!ge;
 
   # rewrite view links
-  $result =~ s!href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex}(?:\.|/)$Foswiki::regex{topicNameRegex})(\?.*?)?\1!'href='.$1.$this->{htmlUrl}.'/'.$2.'.html'.($3||'').$1!ge;
+  my $htmlPrefix = "../" x $depth . "html/";
+  $result =~ s!href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex}(?:\.|/)$Foswiki::regex{topicNameRegex})(\?.*?)?\1!'href='.$1.$htmlPrefix.$2.'.html'.($3||'').$1!ge;
 
   # convert absolute to relative urls
   $result =~ s/$host//g;
@@ -423,11 +426,14 @@ sub copyAsset {
   my $dst = $newPath . '/' . $file;
 
   # collapse relative links
-  while ($src =~ s/[^\/]+\/\.\.//g) {1;}
-  while ($dst =~ s/[^\/]+\/\.\.//g) {1;}
+  while ($src =~ s/([^\/\.]+\/\.\.\/)//) {1;}
+  while ($dst =~ s/[^\/\.]+\/\.\.\///) {1;}
+  $src =~ s/\/+/\//g;
+  $dst =~ s/\/+/\//g;
 
-  $url = $this->{assetsUrl}.'/'.$path.'/'.$file;
-  
+  #$url = $this->{assetsUrl}.'/'.$path.'/'.$file;
+  $url = $path.'/'.$file;
+
   if (-r $src) {
 
     unless (-d $newPath) {
