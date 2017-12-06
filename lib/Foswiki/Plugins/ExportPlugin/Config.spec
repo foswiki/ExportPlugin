@@ -9,7 +9,7 @@ $Foswiki::cfg{ExportPlugin}{Dir} = '$Foswiki::cfg{PubDir}/export';
 $Foswiki::cfg{ExportPlugin}{URL} = '$Foswiki::cfg{DefaultUrlHost}$Foswiki::cfg{PubUrlPath}/export';
 
 # **STRING**
-$Foswiki::cfg{ExportPlugin}{BaseURL} = 'http://localhost';
+$Foswiki::cfg{ExportPlugin}{BaseURL} = '$Foswiki::cfg{PubDir}/export';
 
 # **BOOLEAN**
 $Foswiki::cfg{ExportPlugin}{Debug} = 0;

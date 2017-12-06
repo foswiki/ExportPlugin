@@ -89,15 +89,16 @@ sub convertToPdf {
 
   # create print command
   my $baseUrl = $this->{baseUrl};
+  $baseUrl = Foswiki::Func::getPubUrlPath(undef, undef, undef, absolute=>1);
 
   my $cmd = $Foswiki::cfg{ExportPlugin}{PdfCmd} 
     || $Foswiki::cfg{GenPDFWeasyPlugin}{WeasyCmd}
     || '/usr/local/bin/weasyprint --base-url %BASEURL|U% --media-type print --encoding utf-8 %INFILE|F% %OUTFILE|F%';
 
-  #$this->writeDebug("cmd=$cmd");
-  #$this->writeDebug("BASEURL=$baseUrl");
-  #$this->writeDebug("htmlFile=" . $htmlFile);
-  #$this->writeDebug("pdfFile=$pdfFile");
+  $this->writeDebug("cmd=$cmd");
+  $this->writeDebug("BASEURL=$baseUrl");
+  $this->writeDebug("htmlFile=" . $htmlFile);
+  $this->writeDebug("pdfFile=$pdfFile");
 
   # execute
   my ($output, $exit, $error) = Foswiki::Sandbox->sysCommand(

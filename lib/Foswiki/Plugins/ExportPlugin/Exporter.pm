@@ -50,6 +50,7 @@ sub new {
   $this->{htmlUrl} = $this->{exportUrl}.'/html';
 
   $this->{baseUrl} ||= $this->{exportUrl};
+  $this->{baseUrl} .= '/' unless $this->{baseUrl} =~ /\/$/;
 
   return $this;
 }
@@ -122,10 +123,15 @@ sub getElapsedTime {
 sub export {
   my ($this, $session, $subject, $verb, $response) = @_;
 
+
   my $debug = $this->param("debug");
   $this->{debug} = Foswiki::Func::isTrue($debug, 0) if defined $debug;
 
   $this->writeDebug("called export()");
+
+  my $base = $this->param("base");
+  $this->{baseUrl} = $base if defined $base;
+
   my $result = '';
 
   my $web = $this->param("web");
@@ -379,28 +385,28 @@ sub renderHTML {
 
   #$this->writeDebug("host=$host, viewUrl=$viewUrl, viewUrlPath=$viewUrlPath");
 
-  # Remove <base.../> tag
-  $result =~ s/^<base[^>]+>.*?<\/base>.*$//im;
-  $result =~ s/^base[^>]+\/>.*$//im;
-
   # remove non-macros and leftovers
   $result =~ s/%(?:REVISIONS|REVTITLE|REVARG|QUERYPARAMSTRING)%//g;
   $result =~ s/^%META:\w+{.*}%$//gm;
 
   # copy assets and rewrite urls
-  my $depth = scalar(split(/[\/\.]/, $web)) + 1;
-  my $assetPrefix = "../" x $depth . "assets/";
-  $result =~ s!(['"\(])($Foswiki::cfg{DefaultUrlHost}|https?://$host)?$pub/(.*?)(\1|\))!$1.$assetPrefix.$this->copyAsset($3).$4!ge;
+  $result =~ s!(['"\(])($Foswiki::cfg{DefaultUrlHost}|https?://$host)?$pub/(.*?)(\1|\))!$1.$this->copyAsset($3).$4!ge;
 
   # rewrite view links
-  my $htmlPrefix = "../" x $depth . "html/";
-  $result =~ s!href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex}(?:\.|/)$Foswiki::regex{topicNameRegex})(\?.*?)?\1!'href='.$1.$htmlPrefix.$2.'.html'.($3||'').$1!ge;
+  my $htmlPrefix = $this->{htmlUrl};
+  $htmlPrefix .= '/' unless $htmlPrefix =~ /\/$/;
+  $result =~ s!href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex}(?:\.|/)[[:upper:]]+[[:alnum:]]*)(\?.*?)?\1!'href='.$1.$htmlPrefix.$2.'.html'.($3||'').$1!ge;
 
   # convert absolute to relative urls
   $result =~ s/$host//g;
 
   # fix anchors
   $result =~ s!href=(["'])\?.*?#!href=$1#!g;
+
+  # replace <base.../> tag
+  $result =~ s/^<base[^>]+>.*?<\/base>.*$//im;
+  $result =~ s/^base[^>]+\/>.*$//im;
+  $result =~ s/<head>/<head>\n<base href="$this->{baseUrl}" \/>/;
 
   return $result;
 }
@@ -431,8 +437,8 @@ sub copyAsset {
   $src =~ s/\/+/\//g;
   $dst =~ s/\/+/\//g;
 
-  #$url = $this->{assetsUrl}.'/'.$path.'/'.$file;
-  $url = $path.'/'.$file;
+  $url = $this->{assetsUrl}.'/'.$path.'/'.$file;
+  #$url = $path.'/'.$file;
 
   if (-r $src) {
 
