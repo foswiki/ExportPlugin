@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -179,8 +179,13 @@ sub export {
     }
   }
 
-
   #$this->writeDebug("exporting took ".$this->getElapsedTime($this->{startTime}));
+
+  if (Foswiki::Func::isTrue($this->param("redirect"), 0)) {
+    $this->writeDebug("redirecting to $result");
+    my $request = Foswiki::Func::getRequestObject();
+    Foswiki::Func::redirectCgiQuery($request, $result);
+  }
 
   return $result;
 }
@@ -195,15 +200,13 @@ sub exportTopics {
   @$topics = grep {/$include/} @$topics if defined $include;
   @$topics = grep {!/$exclude/} @$topics if defined $exclude;
 
-  @$topics = grep {
-    Foswiki::Func::topicExists($web, $_) ?  1: $this->writeWarning("woops, topic $web.$_ does not exist") && 0;
-  } @$topics;
-
   my $i = 0;
   my $limit = $this->param("limit") || 0;
   if ($limit) {
     @$topics = splice(@$topics, 0, $limit);
   }
+
+  my $publishSet = $this->publishSet($web, $topics);
 
   my $len = scalar(@$topics);
   $this->writeDebug("exporting $len topic(s)");
@@ -211,40 +214,40 @@ sub exportTopics {
   # capture main session running the rest handler
   my $mainSession = $Foswiki::Plugins::SESSION;
 
-  foreach my $topic (@$topics) {
+  foreach my $item (@$publishSet) {
     $i++ ;
-    my ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($web ,$topic);
 
-    my $src = $Foswiki::cfg{DataDir}.'/'.$thisWeb.'/'.$thisTopic.'.txt';
-    my $dst = $this->getTargetPath($thisWeb, $thisTopic);
+    my $src = $Foswiki::cfg{DataDir}.'/'.$item->{web}.'/'.$item->{topic}.'.txt';
+    my $dst = $this->getTargetPath($item->{web}, $item->{topic}, $item->{rev});
 
     unless ($forceUpdate) {
       my $mtimeSrc = (stat $src)[9] || 0;
       my $mtimeDst = (stat $dst)[9] || 0;
 
       if ($mtimeSrc < $mtimeDst) {
-        $this->writeDebug("skipping $thisWeb.$thisTopic ... did not change");
+        $this->writeDebug("skipping $item->{web}.$item->{topic} ... did not change");
         next;
       }
     }
 
-    unless (Foswiki::Func::topicExists($thisWeb, $thisTopic)) {
-      $this->writeWarning("$thisWeb.$thisTopic does not exist ... skipping");
+    unless (Foswiki::Func::topicExists($item->{web}, $item->{topic})) {
+      $this->writeWarning("$item->{web}.$item->{topic} does not exist ... skipping");
       next;
     }
 
     # pushTopicContext does not suffice. we need a new Foswiki session for every topic
-    # Foswiki::Func::pushTopicContext($thisWeb, $thisTopic);
+    # Foswiki::Func::pushTopicContext($item->{web}, $item->{topic});
 
     my $request = Foswiki::Request->new();
 
     # forward params
     foreach my $key ($this->param_list) {
-      next if $key eq 'topic';
+      next if $key =~ /^(web|topic|rev|redirect|forceupdate|include|exclude|includeweb|excludeweb|limit|debug|redirect)$/;
       my $val = $this->param($key);
       $request->param($key, $val);
     }
-    $request->param("topic", $thisWeb.'.'.$thisTopic);
+    $request->param("topic", $item->{web}.'.'.$item->{topic});
+    $request->param("rev", $item->{rev}) if $item->{rev};
 
     my $wikiName = Foswiki::Func::getWikiName();
     my $loginName = Foswiki::Func::wikiToUserName($wikiName);
@@ -252,12 +255,15 @@ sub exportTopics {
       static => 1,
     });
 
+    # patch internal session
     $Foswiki::Plugins::SESSION = $session;
  
-    $this->writeDebug("$i/$len: exporting $thisWeb.$thisTopic to $dst");
-    $this->exportTopic($thisWeb, $thisTopic);
+    $this->writeDebug("$i/$len: exporting $item->{web}.$item->{topic}, rev=$item->{rev} to $dst");
+    $this->exportTopic($item->{web}, $item->{topic}, $item->{rev});
 
     $session->finish();
+
+    # revert to main session
     $Foswiki::Plugins::SESSION = $mainSession;
 
     last if $limit && $i > $limit;
@@ -266,38 +272,61 @@ sub exportTopics {
   # restore main session context;
   $Foswiki::Plugins::SESSION = $mainSession;
 
-  return $this->postProcess($web, $topics);
+  return $this->postProcess();
+}
+
+sub publishSet {
+  my ($this, $web, $topics) = @_;
+
+  if ($topics) {
+    $this->{_publishSet} = [];
+    foreach my $topic (@$topics) {
+      my $rev;
+      if ($topic =~ /^(.*?)(?:=(\d+))?$/) {
+        $topic = $1;
+        $rev = $2;
+      }
+      $rev ||= 0;
+      my ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($web ,$topic);
+      $thisWeb =~ s/\//\./g;
+      push @{$this->{_publishSet}}, {
+        web => $thisWeb,
+        topic => $thisTopic,
+        rev => $rev  
+      };
+    }
+  }
+
+  return $this->{_publishSet};
 }
 
 sub postProcess {
-  my ($this, $web, $topics) = @_;
+  my ($this) = @_;
 
-  my $topic;
-  if (defined $topics && @$topics) {
-    $topic = shift @$topics;
-  }
-  return $this->getTargetUrl($web, $topic);
+  my $item = @{$this->publishSet()}[0];
+
+  return $this->getTargetUrl($item->{web}, $item->{topic}, $item->{rev});
 }
 
 sub exportTopic {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev) = @_;
 
   # not using a die() 
   $this->writeWarning("exportTopic not implemented");
 }
 
 sub getTargetPath {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
   # not using a die() 
   $this->writeWarning("getTargetPath not implemented");
 }
 
 sub getTargetUrl {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
   # not using a die() 
-  $this->writeWarning("getTargetUrl not implemented");
+  $this->writeWarning("getTargetUrl not implemented $this");
 }
 
 sub extractExportableAreas {
@@ -389,11 +418,6 @@ sub renderHTML {
   my $pub = Foswiki::Func::getPubUrlPath();
   my $request = Foswiki::Func::getRequestObject();
   my $host = $session->{urlHost} || $request->header('Host') || 'localhost';
-  my $viewUrl = $session->getScriptUrl(1, "view");
-  my $viewUrlPath = $viewUrl;
-  $viewUrlPath =~ s/^$host//g;
-
-  #$this->writeDebug("host=$host, viewUrl=$viewUrl, viewUrlPath=$viewUrlPath");
 
   # remove non-macros and leftovers
   $result =~ s/%(?:REVISIONS|REVTITLE|REVARG|QUERYPARAMSTRING)%//g;
@@ -403,9 +427,7 @@ sub renderHTML {
   $result =~ s!(['"\(])($Foswiki::cfg{DefaultUrlHost}|https?://$host)?$pub/(.*?)(\1|\))!$1.$this->copyAsset($3).$4!ge;
 
   # rewrite view links
-  my $htmlPrefix = $this->{htmlUrl};
-  $htmlPrefix .= '/' unless $htmlPrefix =~ /\/$/;
-  $result =~ s!href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex}(?:\.|/)[[:upper:]]+[[:alnum:]]*)(\?.*?)?\1!'href='.$1.$htmlPrefix.$2.'.html'.($3||'').$1!ge;
+  $result = $this->rewriteViewLinks($result);
 
   # convert absolute to relative urls
   $result =~ s/$host//g;
@@ -413,12 +435,48 @@ sub renderHTML {
   # fix anchors
   $result =~ s!href=(["'])\?.*?#!href=$1#!g;
 
-  # replace <base.../> tag
-  $result =~ s/^<base[^>]+>.*?<\/base>.*$//im;
-  $result =~ s/^base[^>]+\/>.*$//im;
-  $result =~ s/<head>/<head>\n<base href="$this->{baseUrl}" \/>/;
+  # remove <base.../> tag
+  $result =~ s/<\!\-\-\[if IE\]><\/base><!\[endif\]\-\->//i;
+  $result =~ s/<base[^>]+>.*?<\/base>//i;
+  $result =~ s/<base[^>]+\/?>//i;
+  $result =~ s/<\/base>//i;
 
   return $result;
+}
+
+sub rewriteViewLinks {
+  my ($this, $html) = @_;
+
+  my $session = $Foswiki::Plugins::SESSION;
+  my $request = Foswiki::Func::getRequestObject();
+  my $host = $session->{urlHost} || $request->header('Host') || 'localhost';
+  my $viewUrl = $session->getScriptUrl(1, "view");
+  my $viewUrlPath = $viewUrl;
+  $viewUrlPath =~ s/^$host//g;
+
+  #$this->writeDebug("host=$host, viewUrl=$viewUrl, viewUrlPath=$viewUrlPath");
+
+  our %topics;
+  foreach my $item (@{$this->publishSet}) {
+    $topics{"$item->{web}.$item->{topic}"} = 1;
+  }
+  #print STDERR "converging topics ".join(", ", keys %topics)."\n";
+
+  sub _doit {
+    my ($this, $all, $quote, $web, $topic, $params) = @_;
+
+    return $all unless $topics{"$web.$topic"};
+
+    #print STDERR "rewriting web=$web, topic=$topic\n";
+
+    my $url = $this->getTargetUrl($web, $topic);
+    $url ||= '?'.$params if $params;
+    return 'href='.$quote.$url.$quote;
+  }
+
+  $html =~ s!(href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex})(?:\.|/)([[:upper:]]+[[:alnum:]]*)(\?.*?)?\2)!_doit($this, $1, $2, $3, $4, $5)!ge;
+
+  return $html;
 }
 
 sub copyAsset {
@@ -450,6 +508,8 @@ sub copyAsset {
 
   $url = $this->{assetsUrl}.'/'.$path.'/'.$file;
   #$url = $path.'/'.$file;
+
+#print STDERR "assetName=$assetName, src=$src, dst=$dst\n";
 
   if (-r $src) {
 

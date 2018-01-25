@@ -1,7 +1,7 @@
 /*
  * jQuery pdf export plugin 1.0
  *
- * Copyright (c) 2017 Michael Daum http://michaeldaumconsulting.com
+ * Copyright (c) 2017-2018 Michael Daum http://michaeldaumconsulting.com
  *
  * Dual licensed under the MIT and GPL licenses:
  *   http://www.opensource.org/licenses/mit-license.php

@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -37,9 +37,9 @@ sub new {
 }
 
 sub exportTopic {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev) = @_;
 
-  my ($meta, $text) = Foswiki::Func::readTopic($web, $topic);
+  my ($meta, $text) = Foswiki::Func::readTopic($web, $topic, $rev);
 
   my $wikiName = Foswiki::Func::getWikiName();
   my $cUID = Foswiki::Func::getCanonicalUserID();
@@ -59,8 +59,8 @@ sub exportTopic {
   my $result = $this->renderHTML($web, $topic, $meta, $text);
 
   #$this->writeDebug($result);
-  my ($path, $file) = $this->getTargetPath($web, $topic);
-  my $url = $this->getTargetUrl($web, $topic);
+  my ($path, $file) = $this->getTargetPath($web, $topic, $rev);
+  my $url = $this->getTargetUrl($web, $topic, $rev);
 
   #$this->writeDebug("file=$file, url=$url");
 
@@ -71,22 +71,26 @@ sub exportTopic {
 }
 
 sub getTargetPath {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
   ($web, $topic) = Foswiki::Func::normalizeWebTopicName($web, $topic || $Foswiki::cfg{HomeTopicName});
 
+  $name ||= $topic;
+  $name .= "_$rev" if $rev;
   my $path = $this->{htmlDir}.'/'.$web;
-  my $file = $path.'/'.$topic.'.html';
+  my $file = $path.'/'.$name.'.html';
 
   return wantarray ? ($path, $file) : $file;
 }
 
 sub getTargetUrl {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
   ($web, $topic) = Foswiki::Func::normalizeWebTopicName($web, $topic || $Foswiki::cfg{HomeTopicName});
 
-  return $this->{htmlUrl}.'/'.$web.'/'.$topic.'.html';
+  $name ||= $topic;
+  $name .= "_$rev" if $rev;
+  return $this->{htmlUrl}.'/'.$web.'/'.$name.'.html';
 }
 
 1;

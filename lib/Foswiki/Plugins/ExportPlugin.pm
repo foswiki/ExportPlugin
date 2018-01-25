@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -21,8 +21,8 @@ use warnings;
 use Foswiki::Func ();
 use Foswiki::Contrib::JsonRpcContrib ();
 
-our $VERSION = '0.03';
-our $RELEASE = '01 Dec 2017';
+our $VERSION = '0.04';
+our $RELEASE = '25 Jan 2018';
 our $SHORTDESCRIPTION = 'Export wiki content in various formats';
 our $NO_PREFS_IN_TOPIC = 1;
 

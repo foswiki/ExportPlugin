@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" date="1263951431" format="1.1" reprev="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1516888080" format="1.1"  version="1"}%
 ---+!! %TOPIC%
 %FORMFIELD{"Description"}%
 
@@ -6,7 +6,38 @@
 
 ---++ Usage
 
+Use =./rest /ExportPlugin/html= to generate an HTML export, =./rest /ExportPlugin/pdf= for a PDF export
+
+These handlers can either be called by the browser or on the command line. Note that an export might take
+a considerable amount of time to be performed, i.e. when specifying =forceupdate=on=. A browser request
+might likely time out then without while the process keeps running on the server side until finished.
+
+| *Parameters* | *Description* | *Default* |
+| topics | comma separated list of topics to be published; each list item can be of the format =&lt;web>.&lt;topic>=&lt;rev>=, where =web= and =rev= is optional | current topic |
+| debug | boolean | off |
+| web | web to be exported | current web |
+| webs | set of webs to be exported | current web |
+| includeweb | regex of webs to be exported | |
+| excludeweb | regex of webs not to be exported | |
+| include | regex of topics to be exported | |
+| exclude | regex of topics not to be exported | |
+| forceupdate | boolean to skip checking for already existant exports; export is incremental otherwise updating things that changed since the last call | off |
+| limit | maximum number of topics to be exported | all |
+| redirect | boolean flag to redirect the browser to the newly created asset | off |
+| skin, cover, etc | any other url parameter is forwarded to the generated page | |
+
 ---++ Examples
+
+%BUTTON{"Export to PDF" 
+   icon="fa-file-pdf-o" 
+   href="%SCRIPTURLPATH{"rest"}%/ExportPlugin/pdf?topic=%WEB%.%TOPIC%&redirect=on&cover=print.nat"
+}%
+
+%BUTTON{"Export to HTML" 
+   icon="fa-file-o" 
+   href="%SCRIPTURLPATH{"rest"}%/ExportPlugin/html?topic=%WEB%.%TOPIC%&redirect=on&cover=print.nat"
+}%
+
 
 ---++ Installation Instructions
 
@@ -19,11 +50,11 @@
 
 %META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
-%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2017 Michael Daum http://michaeldaumconsulting.com"}%
+%META:FIELD{name="Version" title="Version" value="%25$VERSION%25"}%
+%META:FIELD{name="Release" title="Release" value="%25$RELEASE%25"}%
 %META:FIELD{name="Description" title="Description" value="%25$SHORTDESCRIPTION%25"}%
-%META:FIELD{name="Home" title="Home" value="Foswiki:Extensions/%TOPIC%"}%
+%META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/%25TOPIC%25"}%
+%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2017-2018 Michael Daum http://michaeldaumconsulting.com"}%
 %META:FIELD{name="License" title="License" value="[[http://www.gnu.org/licenses/gpl.html][GPL (Gnu General Public License)]]"}%
-%META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
-%META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/%TOPIC%"}%
-%META:FIELD{name="Support" title="Support" value="Foswiki:Support/%TOPIC%"}%
-%META:FIELD{name="Version" title="Version" value="%$VERSION%"}%
+%META:FIELD{name="Home" title="Home" value="Foswiki:Extensions/%25TOPIC%25"}%
+%META:FIELD{name="Support" title="Support" value="Foswiki:Support/%25TOPIC%25"}%

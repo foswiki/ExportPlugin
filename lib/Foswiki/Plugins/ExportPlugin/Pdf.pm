@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -40,9 +40,9 @@ sub new {
 }
 
 sub exportTopic {
-  my ($this, $web, $topic) = @_;
+  my ($this, $web, $topic, $rev) = @_;
 
-  my ($meta, $text) = Foswiki::Func::readTopic($web, $topic);
+  my ($meta, $text) = Foswiki::Func::readTopic($web, $topic, $rev);
 
   my $wikiName = Foswiki::Func::getWikiName();
   my $cUID = Foswiki::Func::getCanonicalUserID();
@@ -71,18 +71,17 @@ sub exportTopic {
   make_path($path);
   Foswiki::Func::saveFile($file, $result, 1);
 
-  my $pdfFile = $this->convertToPdf($web, $topic, $file);
+  my $pdfFile = $this->convertToPdf($web, $topic, $rev, $file);
 
   #$this->writeDebug("... took ".$this->getElapsedTime."ms");
 
   return $pdfFile;
 }
 
-
 sub convertToPdf {
-  my ($this, $web, $topic, $htmlFile) = @_;
+  my ($this, $web, $topic, $rev, $htmlFile) = @_;
 
-  my ($path, $pdfFile) = $this->getTargetPath($web, $topic);
+  my ($path, $pdfFile) = $this->getTargetPath($web, $topic, $rev);
 
   File::Path::mkpath($path);
 
@@ -94,8 +93,8 @@ sub convertToPdf {
     || $Foswiki::cfg{GenPDFWeasyPlugin}{WeasyCmd}
     || '/usr/local/bin/weasyprint --base-url %BASEURL|U% --media-type print --encoding utf-8 %INFILE|F% %OUTFILE|F%';
 
-  $this->writeDebug("cmd=$cmd");
-  $this->writeDebug("BASEURL=$baseUrl");
+  #$this->writeDebug("cmd=$cmd");
+  #$this->writeDebug("BASEURL=$baseUrl");
   $this->writeDebug("htmlFile=" . $htmlFile);
   $this->writeDebug("pdfFile=$pdfFile");
 
@@ -119,12 +118,13 @@ sub convertToPdf {
 }
 
 sub getTargetPath {
-  my ($this, $web, $topic, $name) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
-  my $path = $this->{assetsDir}.'/'.$web;
+  my $path = $this->{assetsDir}.'/';
+  $path .= $web if defined $web;
   $path .= '/'.$topic if defined $topic;
 
-  my $file = 'genpdf_'.($name||$topic||$web).'.pdf';
+  my $file = 'genpdf_'.($name||$topic||$web).($rev?"_$rev":"").'.pdf';
 
   $file =~ s{[\\/]+$}{};
   $file =~ s!^.*[\\/]!!;
@@ -135,7 +135,7 @@ sub getTargetPath {
 }
 
 sub getTargetUrl {
-  my ($this, $web, $topic, $name) = @_;
+  my ($this, $web, $topic, $rev, $name) = @_;
 
   if (ref($topic)) {
     $topic = shift @$topic; # SMELL
@@ -145,7 +145,7 @@ sub getTargetUrl {
   my $path = $this->{assetsUrl}.'/'.$web;
   $path .= '/'.$topic if defined $topic;
 
-  my $file = 'genpdf_'.($name||$topic||$web).'.pdf';
+  my $file = 'genpdf_'.($name||$topic||$web).($rev?"_$rev":"").'.pdf';
 
   $file =~ s{[\\/]+$}{};
   $file =~ s!^.*[\\/]!!;
@@ -156,23 +156,25 @@ sub getTargetUrl {
 }
 
 sub postProcess {
-  my ($this, $web, $topics) = @_;
+  my ($this) = @_;
 
   if (Foswiki::Func::isTrue($this->param("join"), 0)) {
 
     my @files = ();
     my $md5 = Digest::MD5->new();
-    foreach my $topic (@$topics) {
-      my ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($web, $topic);
+    my $web;
 
-      $this->writeDebug("...joining $thisWeb.$thisTopic");
-      my $filePath = $this->getTargetPath($thisWeb, $thisTopic);
+    foreach my $item (@{$this->publishSet()}) {
+      $this->writeDebug("...joining $item->{web}.$item->{topic}".($item->{rev}?"rev=$item->{rev}":""));
+      $web ||= $item->{web};
+
+      my $filePath = $this->getTargetPath($item->{web}, $item->{topic}, $item->{rev});
       push @files, $filePath;
       $md5->add($filePath);
     }
 
     $md5 = $md5->hexdigest;
-    my $pdfFile = $this->getTargetPath($web, undef, $md5);
+    my $pdfFile = $this->getTargetPath($web, undef, undef, $md5);
 
     $this->writeDebug("pdfFile=$pdfFile");
 
@@ -194,10 +196,12 @@ sub postProcess {
       throw Error::Simple("execution of pdfjam failed ($exit) \n\n$error");
     }
 
-    return $this->getTargetUrl($web, undef, $md5);
+    return $this->getTargetUrl($web, undef, undef, $md5);
   } 
   
-  return $this->getTargetUrl($web, $topics);
+  # SMELL: why can't we use $this->SUPER::postProcess();
+  my $item = @{$this->publishSet()}[0];
+  return $this->getTargetUrl($item->{web}, $item->{topic}, $item->{rev});
 }
 
 sub jsonRpcExport {
