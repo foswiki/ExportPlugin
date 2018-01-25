@@ -86,7 +86,6 @@ sub convertToPdf {
 
   File::Path::mkpath($path);
 
-
   # create print command
   my $baseUrl = $this->{baseUrl};
   $baseUrl = Foswiki::Func::getPubUrlPath(undef, undef, undef, absolute=>1);

@@ -79,6 +79,15 @@ sub param {
   return $val;
 }
 
+sub param_list {
+  my ($this) = @_;
+
+  my $request = Foswiki::Func::getRequestObject();
+  my @keys = $request->param();
+
+  return @keys;
+}
+
 sub writeDebug {
   my ($this, $msg) = @_;
 
@@ -122,7 +131,6 @@ sub getElapsedTime {
 
 sub export {
   my ($this, $session, $subject, $verb, $response) = @_;
-
 
   my $debug = $this->param("debug");
   $this->{debug} = Foswiki::Func::isTrue($debug, 0) if defined $debug;
@@ -228,17 +236,19 @@ sub exportTopics {
     # pushTopicContext does not suffice. we need a new Foswiki session for every topic
     # Foswiki::Func::pushTopicContext($thisWeb, $thisTopic);
 
-    my $skin = $this->param("skin");
-    my $cover = $this->param("cover");
-    my $forceUpdate = $this->param("forceupdate") || 'off';
     my $request = Foswiki::Request->new();
+
+    # forward params
+    foreach my $key ($this->param_list) {
+      next if $key eq 'topic';
+      my $val = $this->param($key);
+      $request->param($key, $val);
+    }
     $request->param("topic", $thisWeb.'.'.$thisTopic);
-    $request->param("skin", $skin);
-    $request->param("cover", $cover);
-    $request->param("forceupdate", $forceUpdate);
 
     my $wikiName = Foswiki::Func::getWikiName();
-    my $session = Foswiki->new($wikiName, $request, {
+    my $loginName = Foswiki::Func::wikiToUserName($wikiName);
+    my $session = Foswiki->new($loginName, $request, {
       static => 1,
     });
 
@@ -374,7 +384,7 @@ sub renderHTML {
   $result =~ s/\s*&#37;\{(<\/pre>)\}\%/$1/g;
 
   # clean up unsatisfied WikiWords.
-  $result =~ s/<([^\s]+)\s+[^>]*.+class=.foswikiNewLink.[^>]*>(.*?)<\/\1>/$2/g;
+  $result =~ s/<([^\s]+)\s+[^>]*?class=.foswikiNewLink.[^>]*?>(.*?)<\/\1>/$2/g;
 
   my $pub = Foswiki::Func::getPubUrlPath();
   my $request = Foswiki::Func::getRequestObject();
@@ -414,6 +424,7 @@ sub renderHTML {
 sub copyAsset {
   my ($this, $assetName) = @_;
 
+  $assetName = _urlDecode($assetName);
   $assetName =~ s/^\s+|\s+$//g;
   $assetName =~ s/\?.*$//;
 
@@ -523,6 +534,16 @@ sub renderZones {
   } else {
     $text = $session->zones()->_renderZones($text);
   }
+
+  return $text;
+}
+
+sub _urlDecode {
+  my $text = shift;
+
+  $text = Foswiki::encode_utf8($text);
+  $text =~ s/%([\da-fA-F]{2})/chr(hex($1))/ge;
+  $text = Foswiki::decode_utf8($text);
 
   return $text;
 }
