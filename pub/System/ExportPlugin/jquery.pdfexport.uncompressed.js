@@ -1,11 +1,9 @@
 /*
  * jQuery pdf export plugin 1.0
  *
- * Copyright (c) 2017-2018 Michael Daum http://michaeldaumconsulting.com
+ * Copyright (c) 2017-2020 Michael Daum http://michaeldaumconsulting.com
  *
- * Dual licensed under the MIT and GPL licenses:
- *   http://www.opensource.org/licenses/mit-license.php
- *   http://www.gnu.org/licenses/gpl.html
+ * Licensed under the GPL license http://www.gnu.org/licenses/gpl.html
  *
  */
 
@@ -14,7 +12,11 @@
 
   // Create the defaults once
   var defaults = {
-        debug: false
+        debug: false,
+        form: ".jqExportForm",
+        progressbar: ".jqExportProgress",
+        errorElem: ".jqExportErrorMessage",
+        successElem: ".jqExportSuccessMessage",
       };
 
 
@@ -23,10 +25,13 @@
     var self = this;
 
     self.$elem = $(elem); 
-    self.$form = self.$elem.find("form:first");
-    self.$progressbar = self.$elem.find(".jqPdfExportProgress");
-
     self.opts = $.extend({}, defaults, opts, self.$elem.data()); 
+
+    self.$form = $(self.opts.form);
+    self.$progressbar = $(self.opts.progressbar);
+    self.$errorElem = $(self.opts.errorElem);
+    self.$successElem = $(self.opts.successElem);
+
     self.init(); 
   } 
 
@@ -119,7 +124,7 @@
     self.$progressbar.progressbar();
 
     // add submit handler
-    self.$form.on("submit", function(e) {
+    self.$elem.on("click", function(e) {
       var params, origTopics;
 
       e.preventDefault();
@@ -217,9 +222,9 @@
   // display a message
   PdfExport.prototype.showMessage = function(type, msg, title) {
     var self = this,
-        selector = (type === 'error' ? '.foswikiErrorMessage' : '.foswikiSuccessMessage');
+        elem = (type === 'error' ? self.$errorElem : self.$successElem);
 
-    self.$elem.find(selector).show().html((title?title+": ":"")+msg);
+    elem.show().html((title?title+": ":"")+msg);
   };
 
 
@@ -228,9 +233,9 @@
     var self = this;
 
     self.$progressbar.hide();
-    self.$elem.find('.foswikiErrorMessage').text("").hide();
-    self.$elem.find('.foswikiSuccessMessage').text("").hide();
-    self.$elem.find('.error').removeClass("error");
+    self.$errorElem.text("").hide();
+    self.$successElem.text("").hide();
+    self.$form.find('.error').removeClass("error");
   };
 
   // A plugin wrapper around the constructor, 
@@ -244,8 +249,8 @@
 
   // Enable declarative widget instanziation 
   $(function() {
-    $(".jqPdfExport:not(.jqPdfExportInited)").livequery(function() {
-      $(this).addClass("jqPdfExportInited").pdfExport();
+    $(".jqPdfExport").livequery(function() {
+      $(this).pdfExport();
     });
   });
 

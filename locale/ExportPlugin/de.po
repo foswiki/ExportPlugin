@@ -1,0 +1,49 @@
+# Foswiki translation for Deutsch
+# Translators:
+msgid ""
+msgstr ""
+"Project-Id-Version: Foswiki $Id\n"
+"Report-Msgid-Bugs-To: foswiki-svn@lists.sourceforge.net\n"
+"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"PO-Revision-Date: 2016-02-25 16:35+0200\n"
+"Last-Translator: Michael Daum <foswiki@michaeldaumconsulting.com>\n"
+"Language-Team: German <http://translate.foswiki.org/projects/foswiki/"
+"distribution-master/de/>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 2.4\n"
+
+#: data/System/WebExportViewTemplate.txt:18
+msgid "Author"
+msgstr "Autor"
+
+#: data/System/WebExportViewTemplate.txt:18
+msgid "Changed"
+msgstr "Geändert"
+
+#: data/System/WebExportViewTemplate.txt:72
+msgid "Export to Excel"
+msgstr "Export als Excel"
+
+#: data/System/WebExportViewTemplate.txt:73
+msgid "Export to PDF"
+msgstr "Export als PDF"
+
+#: data/System/WebExportViewTemplate.txt:63
+msgid "Force a recompilation of all files"
+msgstr "Neuberechnung aller Dateien erzwingen"
+
+#: data/System/WebExportViewTemplate.txt:18
+msgid "Summary"
+msgstr "Zusammenfassungen"
+
+#: data/System/WebExportViewTemplate.txt:18
+msgid "Tags"
+msgstr "Schlüsselworte"
+
+#: data/System/WebExportViewTemplate.txt:18
+msgid "Title"
+msgstr "Titel"

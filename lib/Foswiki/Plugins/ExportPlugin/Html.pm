@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2020 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -46,7 +46,7 @@ sub exportTopic {
 
   unless ($meta->haveAccess("VIEW", $cUID )) {
     $this->writeWarning("$wikiName has got no access to $web.$topic ... skipping");
-    return;
+    return 0;
   }
 
   # copy attachments
@@ -68,6 +68,8 @@ sub exportTopic {
   Foswiki::Func::saveFile($file, $result, 1);
 
   #$this->writeDebug("... took ".$this->getElapsedTime."ms");
+
+  return $file;
 }
 
 sub getTargetPath {

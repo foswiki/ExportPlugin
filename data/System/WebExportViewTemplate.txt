@@ -1,46 +1,35 @@
-%META:TOPICINFO{author="micha" comment="reprev" date="1474030103" format="1.1" reprev="1" version="2"}%
+%META:TOPICINFO{author="micha" comment="reprev" date="1586680494" format="1.1" reprev="1" version="3"}%
 %META:TOPICPARENT{name="WebHome"}%
-%{<verbatim class="tml">}%
 %TMPL:INCLUDE{"view"}%
 %TMPL:DEF{"revinfo"}%%TMPL:END%
 %TMPL:DEF{"sidebar"}%%TMPL:END%
-%{</verbatim>}%
+%TMPL:DEF{"form"}%%TMPL:END%
+%TMPL:DEF{"metadata"}%%TMPL:END%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::columns"}%%WEBEXPORTCOLUMNS{default="index, TopicTitle, Summary, Tag, Changed, Author"}%%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::rows"}%%WEBEXPORTROWS{default="10"}%%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::titles"}%%WEBEXPORTTIITLES{default="TopicTitle_title=\"%MAKETEXT{"Title"}%\" Summary_title=\"%MAKETEXT{"Summary"}%\" Tag_title=\"%MAKETEXT{"Tags"}%\" Changed_title=\"%MAKETEXT{"Changed"}%\" Author_title=\"%MAKETEXT{"Author"}%\""}%%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::title"}%<h1>%WEBEXPORTTITLE{default="%TOPIC%"}%</h1>%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
-%TMPL:DEF{"webexport::formstart"}%%JQREQUIRE{"pdfexport"}%
-<div class="jqPdfExport">
-<form action="%SCRIPTURLPATH{"view"}%/%WEB%/%TOPIC%">
+%TMPL:DEF{"webexport::formstart"}%%JQREQUIRE{"pdfexport, excelexport"}%
+<form action="%SCRIPTURLPATH{"view"}%/%WEB%/%TOPIC%" class="jqExportForm">
 <input type="hidden" name="web" value="%WEB%" />
-<input type="hidden" name="cover" value="print.nat" />
+<input type="hidden" name="cover" value="print" />
+<input type="hidden" name="fields" value="topic,TopicTitle,Summary,Category,Tag,author,date,revision,url" />
+<input type="hidden" name="filename" value="%WEB%" />
 %TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::query"}%%WEBEXPORTQUERY{default="!(topic=~'.*Template$')"}%%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::formtable"}%%DATATABLE{
    query="%TMPL:P{"webexport::query"}%"
+   connector="dbcache"
    web="%WEB%"
    columns="%TMPL:P{"webexport::columns"}%"
-   sort="title" %TMPL:P{"webexport::titles"}%
+   sort="TopicTitle" %TMPL:P{"webexport::titles"}%
    class="foswikiFlatTable"
    width="100%"
    paging="on"
@@ -53,40 +42,32 @@
    selectproperty="Topic"
    selection="%URLPARAM{"Topic"}%"
 }%%TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::formoptions"}%
 <label>
 <input type="checkbox" name="forceupdate" class="foswikiCheckbox" value="on" />
 %MAKETEXT{"Force a recompilation of all files"}%
 </label>
 %TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::formend"}%
-%BUTTON{"%MAKETEXT{"Export to PDF"}%" type="submit" icon="printer"}%
 </form>
 
-<div class='foswikiErrorMessage' style='display:none'></div>
-<div class='foswikiSuccessMessage' style='display:none'></div>
+%BUTTON{"%MAKETEXT{"Export to Excel"}%" icon="fa-table" class="jqExcelExport"}%
+%BUTTON{"%MAKETEXT{"Export to PDF"}%" icon="fa-print" class="jqPdfExport"}%
 
-<div class="jqPdfExportProgress" style="display:none"><label></label></div>
-</div>
+<div class='jqExportErrorMessage foswikiErrorMessage' style='display:none'></div>
+<div class='jqExportSuccessMessage foswikiSuccessMessage' style='display:none'></div>
+
+<div class="jqExportProgress" style="display:none"><label></label></div>
 %TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"webexport::messages"}%
 %TMPL:END%
-%{</verbatim>}%
 
-%{<verbatim class="tml">}%
 %TMPL:DEF{"content"}%<!-- -->
 %TMPL:P{"webexport::title"}%
 %TMPL:P{"webexport::formstart"}%
 %TMPL:P{"webexport::formtable"}%
 %TMPL:P{"webexport::formoptions"}%
 %TMPL:P{"webexport::formend"}%
-%TMPL:END%%{</verbatim>}%

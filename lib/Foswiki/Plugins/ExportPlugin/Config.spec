@@ -25,11 +25,17 @@ $Foswiki::cfg{ExportPlugin}{PdfJamCmd} = '/usr/bin/pdfjam --quiet --fitpaper tru
 
 # ---++ JQueryPlugin
 # ---+++ Extra plugins
-# **STRING**
+# **STRING EXPERT**
 $Foswiki::cfg{JQueryPlugin}{Plugins}{PdfExport}{Module} = 'Foswiki::Plugins::ExportPlugin::JQueryPdfExport';
 
 # **BOOLEAN**
 $Foswiki::cfg{JQueryPlugin}{Plugins}{PdfExport}{Enabled} = 1;
+
+# **STRING EXPERT**
+$Foswiki::cfg{JQueryPlugin}{Plugins}{ExcelExport}{Module} = 'Foswiki::Plugins::ExportPlugin::JQueryExcelExport';
+
+# **BOOLEAN**
+$Foswiki::cfg{JQueryPlugin}{Plugins}{ExcelExport}{Enabled} = 1;
 
 
 1;

@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2020 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -20,6 +20,7 @@ use warnings;
 
 use Foswiki ();
 use Foswiki::Func ();
+use Foswiki::Form ();
 use Foswiki::Request ();
 use Foswiki::Plugins ();
 use Time::HiRes ();
@@ -27,27 +28,30 @@ use File::Spec();
 use File::Copy();
 use File::Path qw(make_path);
 use Data::Dump qw(dump);
+use Error qw(:try);
 
 sub new {
   my $class = shift;
 
   my $this = bless({
-    debug => $Foswiki::cfg{ExportPlugin}{Debug},
-    exportDir => $Foswiki::cfg{ExportPlugin}{Dir},
-    exportUrl => $Foswiki::cfg{ExportPlugin}{URL},
-    baseUrl => $Foswiki::cfg{ExportPlugin}{BaseURL},
-    @_
-  }, $class);
+      debug => $Foswiki::cfg{ExportPlugin}{Debug},
+      exportDir => $Foswiki::cfg{ExportPlugin}{Dir},
+      exportUrl => $Foswiki::cfg{ExportPlugin}{URL},
+      baseUrl => $Foswiki::cfg{ExportPlugin}{BaseURL},
+      @_
+    },
+    $class
+  );
 
   $this->{startTime} = $this->{lapseTime} = $this->getTime;
   $this->{urlOfAsset} = {};
   $this->{params} = {};
 
-  $this->{assetsDir} = $this->{exportDir}.'/assets';
-  $this->{assetsUrl} = $this->{exportUrl}.'/assets';
+  $this->{assetsDir} = $this->{exportDir} . '/assets';
+  $this->{assetsUrl} = $this->{exportUrl} . '/assets';
 
-  $this->{htmlDir} = $this->{exportDir}.'/html';
-  $this->{htmlUrl} = $this->{exportUrl}.'/html';
+  $this->{htmlDir} = $this->{exportDir} . '/html';
+  $this->{htmlUrl} = $this->{exportUrl} . '/html';
 
   $this->{baseUrl} ||= $this->{exportUrl};
   $this->{baseUrl} .= '/' unless $this->{baseUrl} =~ /\/$/;
@@ -70,7 +74,7 @@ sub param {
   my ($this, $key) = @_;
 
   my $val = $this->{params}{$key};
-  
+
   unless (defined $val) {
     my $request = Foswiki::Func::getRequestObject();
     $val = $request->param($key);
@@ -94,7 +98,7 @@ sub writeDebug {
   return unless $this->{debug};
   return unless $msg;
 
-  $msg = dump($msg)."\n" if ref($msg);
+  $msg = dump($msg) . "\n" if ref($msg);
 
   #Foswiki::Func::writeDebug(__PACKAGE__ . " - $msg");
   print STDERR __PACKAGE__ . " - $msg\n";
@@ -129,11 +133,9 @@ sub getElapsedTime {
   return (Time::HiRes::tv_interval($startTime, $endTime) * 10000);
 }
 
+# rest interface
 sub export {
   my ($this, $session, $subject, $verb, $response) = @_;
-
-  my $debug = $this->param("debug");
-  $this->{debug} = Foswiki::Func::isTrue($debug, 0) if defined $debug;
 
   $this->writeDebug("called export()");
 
@@ -190,15 +192,55 @@ sub export {
   return $result;
 }
 
+# jsonrpc interface
+sub jsonRpcExport {
+  my ($this, $session, $request) = @_;
+
+  $this->writeDebug("called jsonRpcExport()");
+
+  # init params
+  $this->params($request->params());
+
+  my $web = $this->param("web") || $session->{webName};
+  my $topics = $this->param("topics") || $this->param("topic") || $this->param("Topic") || '';
+  my @topics = split(/\s*,\s*/, $topics);
+
+  $this->writeDebug(\@topics);
+
+  my $result = $this->exportTopics($web, \@topics);
+
+  return {
+    msg => $this->{_numExported} . " topic(s) have been successfully exported.",
+    redirectUrl => $result,
+  };
+}
+
+sub needsUpdate {
+  my ($this, $web, $topic, $rev) = @_;
+
+  return 1 if Foswiki::Func::isTrue($this->param("forceupdate"), 0);
+
+  my $src = $Foswiki::cfg{DataDir} . '/' . $web . '/' . $topic . '.txt';    # SMELL;
+  my $dst = $this->getTargetPath($web, $topic, $rev);
+  my $mtimeSrc = (stat $src)[9] || 0;
+  my $mtimeDst = (stat $dst)[9] || 0;
+
+  if ($mtimeSrc < $mtimeDst) {
+    $this->writeDebug("skipping $web.$topic ... did not change");
+    return 0;
+  }
+
+  return 1;
+}
+
 sub exportTopics {
   my ($this, $web, $topics) = @_;
 
   my $include = $this->param("include");
   my $exclude = $this->param("exclude");
-  my $forceUpdate = Foswiki::Func::isTrue($this->param("forceupdate"), 0);;
 
-  @$topics = grep {/$include/} @$topics if defined $include;
-  @$topics = grep {!/$exclude/} @$topics if defined $exclude;
+  @$topics = grep { /$include/ } @$topics if defined $include;
+  @$topics = grep { !/$exclude/ } @$topics if defined $exclude;
 
   my $i = 0;
   my $limit = $this->param("limit") || 0;
@@ -208,27 +250,22 @@ sub exportTopics {
 
   my $publishSet = $this->publishSet($web, $topics);
 
+  # this to do before export starts
+  $this->preProcess();
+
   my $len = scalar(@$topics);
   $this->writeDebug("exporting $len topic(s)");
 
   # capture main session running the rest handler
-  my $mainSession = $Foswiki::Plugins::SESSION;
+  $this->{baseSession} ||= $Foswiki::Plugins::SESSION;
 
+  $this->{_numExported} = 0;
   foreach my $item (@$publishSet) {
-    $i++ ;
+    $i++;
 
-    my $src = $Foswiki::cfg{DataDir}.'/'.$item->{web}.'/'.$item->{topic}.'.txt';
-    my $dst = $this->getTargetPath($item->{web}, $item->{topic}, $item->{rev});
-
-    unless ($forceUpdate) {
-      my $mtimeSrc = (stat $src)[9] || 0;
-      my $mtimeDst = (stat $dst)[9] || 0;
-
-      if ($mtimeSrc < $mtimeDst) {
-        $this->writeDebug("skipping $item->{web}.$item->{topic} ... did not change");
-        next;
-      }
-    }
+    my $needsUpdate = $this->needsUpdate($item->{web}, $item->{topic}, $item->{rev});
+    $this->writeDebug("needsUpdate=$needsUpdate, topic=$item->{web}.$item->{topic}");
+    next unless $needsUpdate;
 
     unless (Foswiki::Func::topicExists($item->{web}, $item->{topic})) {
       $this->writeWarning("$item->{web}.$item->{topic} does not exist ... skipping");
@@ -246,32 +283,37 @@ sub exportTopics {
       my $val = $this->param($key);
       $request->param($key, $val);
     }
-    $request->param("topic", $item->{web}.'.'.$item->{topic});
+    $request->param("topic", $item->{web} . '.' . $item->{topic});
     $request->param("rev", $item->{rev}) if $item->{rev};
 
     my $wikiName = Foswiki::Func::getWikiName();
     my $loginName = Foswiki::Func::wikiToUserName($wikiName);
-    my $session = Foswiki->new($loginName, $request, {
-      static => 1,
-    });
+    my $session = Foswiki->new(
+      $loginName,
+      $request,
+      {
+        static => 1,
+      }
+    );
 
     # patch internal session
     $Foswiki::Plugins::SESSION = $session;
- 
-    $this->writeDebug("$i/$len: exporting $item->{web}.$item->{topic}, rev=$item->{rev} to $dst");
-    $this->exportTopic($item->{web}, $item->{topic}, $item->{rev});
+
+    $this->writeDebug("$i/$len: exporting $item->{web}.$item->{topic}, rev=$item->{rev}");
+    $this->{_numExported} += ($this->exportTopic($item->{web}, $item->{topic}, $item->{rev}) ? 1 : 0);
 
     $session->finish();
 
     # revert to main session
-    $Foswiki::Plugins::SESSION = $mainSession;
+    $Foswiki::Plugins::SESSION = $this->{baseSession};
 
     last if $limit && $i > $limit;
   }
 
   # restore main session context;
-  $Foswiki::Plugins::SESSION = $mainSession;
+  $Foswiki::Plugins::SESSION = $this->{baseSession};
 
+  # this to do after export stoped
   return $this->postProcess();
 }
 
@@ -287,17 +329,25 @@ sub publishSet {
         $rev = $2;
       }
       $rev ||= 0;
-      my ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($web ,$topic);
+      my ($thisWeb, $thisTopic) = Foswiki::Func::normalizeWebTopicName($web, $topic);
       $thisWeb =~ s/\//\./g;
-      push @{$this->{_publishSet}}, {
+      push @{$this->{_publishSet}},
+        {
         web => $thisWeb,
         topic => $thisTopic,
-        rev => $rev  
-      };
+        rev => $rev
+        };
     }
   }
 
   return $this->{_publishSet};
+}
+
+sub preProcess {
+  my ($this) = @_;
+
+  my $debug = $this->param("debug");
+  $this->{debug} = Foswiki::Func::isTrue($debug, 0) if defined $debug;
 }
 
 sub postProcess {
@@ -311,22 +361,40 @@ sub postProcess {
 sub exportTopic {
   my ($this, $web, $topic, $rev) = @_;
 
-  # not using a die() 
+  # not using a die()
   $this->writeWarning("exportTopic not implemented");
 }
 
 sub getTargetPath {
   my ($this, $web, $topic, $rev, $name) = @_;
 
-  # not using a die() 
+  # not using a die()
   $this->writeWarning("getTargetPath not implemented");
 }
 
 sub getTargetUrl {
   my ($this, $web, $topic, $rev, $name) = @_;
 
-  # not using a die() 
+  # not using a die()
   $this->writeWarning("getTargetUrl not implemented $this");
+}
+
+sub getFormDef {
+  my ($this, $web, $topic) = @_;
+
+  ($web, $topic) = Foswiki::Func::normalizeWebTopicName($web, $topic);
+  return unless defined $web && defined $topic;
+
+  my $session = $Foswiki::Plugins::SESSION;
+
+  my $formDef;
+  try {
+    $formDef = new Foswiki::Form($session, $web, $topic);
+  } catch Error with {
+    $this->writeWarning("getFormDef() failed for $web.$topic");
+  };
+
+  return $formDef;
 }
 
 sub extractExportableAreas {
@@ -355,22 +423,22 @@ sub readTemplate {
   my ($this, $web, $topic, $meta) = @_;
 
   my $skin = $this->param("skin");
-  #$this->writeDebug("skin=".($skin||''));
+  $this->writeDebug("skin=" . ($skin || ''));
 
   my $template;
   $template = Foswiki::Func::getPreferencesValue('VIEW_TEMPLATE');
-  #$this->writeDebug("prefs template=".($template||''));
-  #$template = $meta->getPreference("VIEW_TEMPLATE");
-  #$this->writeDebug("topic template=".($template||''));
+  $this->writeDebug("prefs template=" . ($template || ''));
+  $template = $meta->getPreference("VIEW_TEMPLATE");
+  $this->writeDebug("topic template=" . ($template || ''));
 
   if (!$template && $Foswiki::cfg{Plugins}{AutoTemplatePlugin}{Enabled}) {
     require Foswiki::Plugins::AutoTemplatePlugin;
-    $template = Foswiki::Plugins::AutoTemplatePlugin::getTemplateName($web, $topic);
-    #$this->writeDebug("auto template=".($template||''));
+    $template = Foswiki::Plugins::AutoTemplatePlugin::getTemplateName($web, $topic, 'print');
+    $this->writeDebug("auto template=" . ($template || ''));
   }
   $template ||= "view";
 
-  #$this->writeDebug("template=$template");
+  $this->writeDebug("template=$template");
 
   my $result = Foswiki::Func::readTemplate($template, $skin);
   $result = Foswiki::Func::readTemplate("view", $skin) unless $result;
@@ -436,12 +504,31 @@ sub renderHTML {
   $result =~ s!href=(["'])\?.*?#!href=$1#!g;
 
   # remove <base.../> tag
-  $result =~ s/<\!\-\-\[if IE\]><\/base><!\[endif\]\-\->//i;
-  $result =~ s/<base[^>]+>.*?<\/base>//i;
-  $result =~ s/<base[^>]+\/?>//i;
-  $result =~ s/<\/base>//i;
+#  $result =~ s/<\!\-\-\[if IE\]><\/base><!\[endif\]\-\->//i;
+#  $result =~ s/<base[^>]+>.*?<\/base>//i;
+#  $result =~ s/<base[^>]+\/?>//i;
+#  $result =~ s/<\/base>//i;
 
   return $result;
+}
+
+sub toFileUrl {
+  my ($this, $url) = @_;
+
+  my $fileUrl = $url;
+  my $localServerPattern = '^(?:' . $Foswiki::cfg{DefaultUrlHost} . ')?' . $Foswiki::cfg{PubUrlPath} . '(.*)$';
+  $localServerPattern =~ s/https?/https?/;
+
+  if ($fileUrl =~ /$localServerPattern/) {
+    $fileUrl = $1;
+    $fileUrl =~ s/\?.*$//;
+    $fileUrl = "file://" . $Foswiki::cfg{PubDir} . $fileUrl;
+  } else {
+    #writeDebug("url=$url does not point to a local asset (pattern=$localServerPattern)");
+  }
+
+  #writeDebug("url=$url, fileUrl=$fileUrl");
+  return $fileUrl;
 }
 
 sub rewriteViewLinks {
@@ -470,8 +557,8 @@ sub rewriteViewLinks {
     #print STDERR "rewriting web=$web, topic=$topic\n";
 
     my $url = $this->getTargetUrl($web, $topic);
-    $url ||= '?'.$params if $params;
-    return 'href='.$quote.$url.$quote;
+    $url ||= '?' . $params if $params;
+    return 'href=' . $quote . $url . $quote;
   }
 
   $html =~ s!(href=(["'])(?:$viewUrl|$viewUrlPath)/($Foswiki::regex{webNameRegex})(?:\.|/)([[:upper:]]+[[:alnum:]]*)(\?.*?)?\2)!_doit($this, $1, $2, $3, $4, $5)!ge;
@@ -496,20 +583,20 @@ sub copyAsset {
     $file = $2;
   }
 
-  my $newPath = $this->{assetsDir}.'/'.$path;
-  my $src = Foswiki::Func::getPubDir().'/'.$assetName;
+  my $newPath = $this->{assetsDir} . '/' . $path;
+  my $src = Foswiki::Func::getPubDir() . '/' . $assetName;
   my $dst = $newPath . '/' . $file;
 
   # collapse relative links
-  while ($src =~ s/([^\/\.]+\/\.\.\/)//) {1;}
-  while ($dst =~ s/[^\/\.]+\/\.\.\///) {1;}
+  while ($src =~ s/([^\/\.]+\/\.\.\/)//) { 1; }
+  while ($dst =~ s/[^\/\.]+\/\.\.\///) { 1; }
   $src =~ s/\/+/\//g;
   $dst =~ s/\/+/\//g;
 
-  $url = $this->{assetsUrl}.'/'.$path.'/'.$file;
+  $url = $this->{assetsUrl} . '/' . $path . '/' . $file;
   #$url = $path.'/'.$file;
 
-#print STDERR "assetName=$assetName, src=$src, dst=$dst\n";
+  #print STDERR "assetName=$assetName, src=$src, dst=$dst\n";
 
   if (-r $src) {
 
@@ -520,7 +607,7 @@ sub copyAsset {
 
     $this->mirrorFile($src, $dst);
     #$this->mirrorFile($src.',v', $dst.',v');
-    $this->mirrorFile($src.'.gz', $dst.'.gz') if $src =~ /\.(css|js)$/;
+    $this->mirrorFile($src . '.gz', $dst . '.gz') if $src =~ /\.(css|js)$/;
 
     $this->{urlOfAsset}{$assetName} = $url;
   } else {
@@ -537,13 +624,15 @@ sub copyAsset {
     $data =~ s#\/\*.*?\*\/##gs;
 
     foreach my $asset (split(/;/, $data)) {
-      next unless $asset =~ /url\(["']?(.*?)["']?\)/;
-      $asset = $1;
-      next if $asset =~ /^data:image/;
-      $asset =~ s/\?.*$//;
-      next if $moreAssets{$asset};
-      #$this->writeDebug("... found more assets in $file: $asset");
-      $moreAssets{$asset} = 1;
+      while ($asset =~ /url\(["']?(.*?)["']?\)/g) {
+        my $url = $1;
+        next if $url =~ /^data:image/;
+        $url =~ s/\?.*$//;
+        $url =~ s/#.*$//;
+        next if $moreAssets{$url};
+        #$this->writeDebug("... found more assets in $file: $asset");
+        $moreAssets{$url} = 1;
+      }
     }
 
     my $pub = Foswiki::Func::getPubUrlPath();
@@ -573,7 +662,7 @@ sub mirrorFile {
 
   return unless -e $src;
 
-  my $forceUpdate = Foswiki::Func::isTrue($this->param("forceupdate"), 0);;
+  my $forceUpdate = Foswiki::Func::isTrue($this->param("forceupdate"), 0);
 
   my $mtimeSrc = (stat $src)[9];
   my $mtimeDst = (stat $dst)[9];
@@ -589,13 +678,34 @@ sub renderZones {
 
   # SMELL: call to unofficial api
   my $session = $Foswiki::Plugins::SESSION;
-  if ($session->can("_renderZones")) { # old foswiki
+  if ($session->can("_renderZones")) {    # old foswiki
     $text = $session->_renderZones($text);
   } else {
     $text = $session->zones()->_renderZones($text);
   }
 
   return $text;
+}
+
+sub translate {
+  my ($this, $string, $web, $topic) = @_;
+
+  my $result = $string;
+
+  $string =~ s/^_+//;    # strip leading underscore as maketext doesnt like it
+
+  my $context = Foswiki::Func::getContext();
+  if ($context->{'MultiLingualPluginEnabled'}) {
+    require Foswiki::Plugins::MultiLingualPlugin;
+    $result = Foswiki::Plugins::MultiLingualPlugin::translate($string, $web, $topic);
+  } else {
+    my $session = $Foswiki::Plugins::SESSION;
+    $result = $session->i18n->maketext($string);
+  }
+
+  $result //= $string;
+
+  return $result;
 }
 
 sub _urlDecode {

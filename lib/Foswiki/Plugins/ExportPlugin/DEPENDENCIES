@@ -3,5 +3,6 @@ File::Copy,>0,cpan,Required
 File::Path,>0,cpan,Required
 File::Spec,>0,cpan,Required
 pdfjam,>0,c,Required to merge pdf files. Part of texlive-extra-utils.
+Spreadsheet::Write,>=1.03,cpan,Required
 Time::HiRes,>0,cpan,Required
 Foswiki::Plugins::GenPDFWeasyPlugin,>=1.0,perl,Required

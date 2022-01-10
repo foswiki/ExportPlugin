@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 # 
-# Copyright (C) 2017-2020 Michael Daum, http://michaeldaumconsulting.com
+# Copyright (C) 2020 Michael Daum, http://michaeldaumconsulting.com
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -13,7 +13,7 @@
 # GNU General Public License for more details, published at
 # http://www.gnu.org/copyleft/gpl.html
 
-package Foswiki::Plugins::ExportPlugin::JQueryPdfExport;
+package Foswiki::Plugins::ExportPlugin::JQueryExcelExport;
 
 use strict;
 use warnings;
@@ -26,9 +26,9 @@ use constant TRACE => 0; # toggle me
 
 =begin TML
 
----+ package Foswiki::Plugins::ExportPlugin::JQueryPdfExport
+---+ package Foswiki::Plugins::ExportPlugin::JQueryExcelExport
 
-This is the perl stub for the jquery.pdfExport plugin.
+This is the perl stub for the jquery.excelExport plugin.
 
 =cut
 
@@ -46,13 +46,13 @@ sub new {
 
   my $this = bless($class->SUPER::new( 
     $session,
-    name => 'PdfExport',
+    name => 'ExcelExport',
     version => '1.00',
     author => 'Michael Daum',
     homepage => 'http://foswiki.org/Extensions/ExportPlugin',
     puburl => '%PUBURLPATH%/%SYSTEMWEB%/ExportPlugin',
     documentation => "$Foswiki::cfg{SystemWebName}.ExportPlugin",
-    javascript => ['jquery.pdfexport.js'],
+    javascript => ['jquery.excelexport.js'],
     i18n => $Foswiki::cfg{SystemWebName} . "/ExportPlugin/i18n",
     css => ['style.css'],
     dependencies => ['i18n', 'blockui', 'jsonrpc', 'ui'], 
@@ -62,6 +62,3 @@ sub new {
 }
 
 1;
-
-
-

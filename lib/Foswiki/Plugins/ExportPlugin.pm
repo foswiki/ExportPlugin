@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2020 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -21,8 +21,8 @@ use warnings;
 use Foswiki::Func ();
 use Foswiki::Contrib::JsonRpcContrib ();
 
-our $VERSION = '0.04';
-our $RELEASE = '25 Jan 2018';
+our $VERSION = '0.20';
+our $RELEASE = '24 Feb 2020';
 our $SHORTDESCRIPTION = 'Export wiki content in various formats';
 our $NO_PREFS_IN_TOPIC = 1;
 
@@ -32,6 +32,7 @@ sub completePageHandler {
 
 sub initPlugin {
 
+  # rest
   Foswiki::Func::registerRESTHandler('html',
     sub { 
       require Foswiki::Plugins::ExportPlugin::Html;
@@ -54,12 +55,35 @@ sub initPlugin {
     http_allow => 'GET,POST',
   );
 
+  Foswiki::Func::registerRESTHandler('excel',
+    sub { 
+      require Foswiki::Plugins::ExportPlugin::Excel;
+      my $exporter = Foswiki::Plugins::ExportPlugin::Excel->new();
+      return $exporter->export(@_);
+    },
+    authenticate => 1,
+    validate => 1,
+    http_allow => 'GET,POST',
+  );
+
+  # jsonrpc
+  Foswiki::Contrib::JsonRpcContrib::registerMethod("ExportPlugin", "html", sub {
+    require Foswiki::Plugins::ExportPlugin::Html;
+    my $exporter = Foswiki::Plugins::ExportPlugin::Html->new();
+    return $exporter->jsonRpcExport(@_);
+  });
+
   Foswiki::Contrib::JsonRpcContrib::registerMethod("ExportPlugin", "pdf", sub {
     require Foswiki::Plugins::ExportPlugin::Pdf;
     my $exporter = Foswiki::Plugins::ExportPlugin::Pdf->new();
     return $exporter->jsonRpcExport(@_);
   });
 
+  Foswiki::Contrib::JsonRpcContrib::registerMethod("ExportPlugin", "excel", sub {
+    require Foswiki::Plugins::ExportPlugin::Excel;
+    my $exporter = Foswiki::Plugins::ExportPlugin::Excel->new();
+    return $exporter->jsonRpcExport(@_);
+  });
 
   return 1;
 }

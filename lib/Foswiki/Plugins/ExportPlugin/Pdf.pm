@@ -1,6 +1,6 @@
 # Plugin for Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# ExportPlugin is Copyright (C) 2017-2018 Michael Daum http://michaeldaumconsulting.com
+# ExportPlugin is Copyright (C) 2017-2020 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -42,6 +42,8 @@ sub new {
 sub exportTopic {
   my ($this, $web, $topic, $rev) = @_;
 
+  $this->writeDebug("exportTopic($web,$topic)");
+
   my ($meta, $text) = Foswiki::Func::readTopic($web, $topic, $rev);
 
   my $wikiName = Foswiki::Func::getWikiName();
@@ -49,7 +51,7 @@ sub exportTopic {
 
   unless ($meta->haveAccess("VIEW", $cUID )) {
     $this->writeWarning("$wikiName has got no access to $web.$topic ... skipping");
-    return;
+    return 0;
   }
 
   # copy attachments
@@ -61,12 +63,16 @@ sub exportTopic {
   # generate output format
   my $result = $this->renderHTML($web, $topic, $meta, $text);
 
+  # rewrite some urls to use file://..
+  #$result =~ s/(<link[^>]+href=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
+  #$result =~ s/(<img[^>]+src=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
+
   #$this->writeDebug($result);
   my $path = $this->{htmlDir}.'/'.$web;
   my $file = $path.'/'.$topic.'.html';
   my $url = $this->{htmlUrl}.'/'.$web.'/'.$topic.'.html';
 
-  #$this->writeDebug("file=$file, url=$url");
+  $this->writeDebug("file=$file, url=$url");
 
   make_path($path);
   Foswiki::Func::saveFile($file, $result, 1);
@@ -87,14 +93,13 @@ sub convertToPdf {
 
   # create print command
   my $baseUrl = $this->{baseUrl};
-  $baseUrl = Foswiki::Func::getPubUrlPath(undef, undef, undef, absolute=>1);
 
   my $cmd = $Foswiki::cfg{ExportPlugin}{PdfCmd} 
     || $Foswiki::cfg{GenPDFWeasyPlugin}{WeasyCmd}
     || '/usr/local/bin/weasyprint --base-url %BASEURL|U% --media-type print --encoding utf-8 %INFILE|F% %OUTFILE|F%';
 
-  #$this->writeDebug("cmd=$cmd");
-  #$this->writeDebug("BASEURL=$baseUrl");
+  $this->writeDebug("cmd=$cmd");
+  $this->writeDebug("BASEURL=$baseUrl");
   $this->writeDebug("htmlFile=" . $htmlFile);
   $this->writeDebug("pdfFile=$pdfFile");
 
@@ -108,7 +113,7 @@ sub convertToPdf {
 
   #$this->writeDebug("output=$output");
   #$this->writeDebug("exit=$exit");
-  #$this->writeDebug("error=$error");
+  $this->writeDebug("error=$error");
 
   if ($exit) {
     throw Error::Simple("execution of weasy failed ($exit) \n\n$error");
@@ -128,7 +133,7 @@ sub getTargetPath {
 
   $file =~ s{[\\/]+$}{};
   $file =~ s!^.*[\\/]!!;
-  $file =~ s/$Foswiki::regex{filenameInvalidCharRegex}//go;
+  $file =~ s/$Foswiki::regex{filenameInvalidCharRegex}//g;
   $file = $path.'/'.$file;
 
   return wantarray ? ($path, $file) : $file;
@@ -149,8 +154,8 @@ sub getTargetUrl {
 
   $file =~ s{[\\/]+$}{};
   $file =~ s!^.*[\\/]!!;
-  $file =~ s/$Foswiki::regex{filenameInvalidCharRegex}//go;
-  $file = $path.'/'.$file;
+  $file =~ s/$Foswiki::regex{filenameInvalidCharRegex}//g;
+  $file = $path.'/'.$file."?t=".time();
 
   return $file;
 }
@@ -158,7 +163,7 @@ sub getTargetUrl {
 sub postProcess {
   my ($this) = @_;
 
-  if (Foswiki::Func::isTrue($this->param("join"), 0)) {
+  if (Foswiki::Func::isTrue($this->param("join"), 0) && scalar(@{$this->publishSet()}) > 1) {
 
     my @files = ();
     my $md5 = Digest::MD5->new();
@@ -198,32 +203,11 @@ sub postProcess {
 
     return $this->getTargetUrl($web, undef, undef, $md5);
   } 
+
   
   # SMELL: why can't we use $this->SUPER::postProcess();
   my $item = @{$this->publishSet()}[0];
   return $this->getTargetUrl($item->{web}, $item->{topic}, $item->{rev});
-}
-
-sub jsonRpcExport {
-  my ($this, $session, $request) = @_;
-
-  $this->writeDebug("called jsonRpcExport()");
-
-  # init params
-  $this->params($request->params());
-
-  my $web = $this->param("web") || $session->{webName};
-  my @topics = split(/\s*,\s*/, $this->param("Topic") || '');
-  my $numTopics = scalar(@topics);
-  
-  $this->writeDebug(\@topics);
-
-  my $result = $this->exportTopics($web, \@topics);
-
-  return {
-    msg => $numTopics." topic(s) have been successfully exported.",
-    redirectUrl => $result,
-  };
 }
 
 1;
