@@ -1,10 +1,12 @@
-%META:TOPICINFO{author="micha" comment="reprev" date="1586680494" format="1.1" reprev="1" version="3"}%
+%META:TOPICINFO{author="micha" comment="reprev" date="1642527313" format="1.1" reprev="4" version="4"}%
 %META:TOPICPARENT{name="WebHome"}%
 %TMPL:INCLUDE{"view"}%
 %TMPL:DEF{"revinfo"}%%TMPL:END%
 %TMPL:DEF{"sidebar"}%%TMPL:END%
 %TMPL:DEF{"form"}%%TMPL:END%
 %TMPL:DEF{"metadata"}%%TMPL:END%
+%TMPL:DEF{"web"}%%WEB%%TMPL:END%
+%TMPL:DEF{"filename"}%%WEB%%TMPL:END%
 
 %TMPL:DEF{"webexport::columns"}%%WEBEXPORTCOLUMNS{default="index, TopicTitle, Summary, Tag, Changed, Author"}%%TMPL:END%
 
@@ -15,11 +17,11 @@
 %TMPL:DEF{"webexport::title"}%<h1>%WEBEXPORTTITLE{default="%TOPIC%"}%</h1>%TMPL:END%
 
 %TMPL:DEF{"webexport::formstart"}%%JQREQUIRE{"pdfexport, excelexport"}%
-<form action="%SCRIPTURLPATH{"view"}%/%WEB%/%TOPIC%" class="jqExportForm">
-<input type="hidden" name="web" value="%WEB%" />
+<form action="%SCRIPTURLPATH{"view"}%/%TMPL:P{"web"}%/%TOPIC%" class="jqExportForm">
+<input type="hidden" name="web" value="%TMPL:P{"web"}%" />
 <input type="hidden" name="cover" value="print" />
 <input type="hidden" name="fields" value="topic,TopicTitle,Summary,Category,Tag,author,date,revision,url" />
-<input type="hidden" name="filename" value="%WEB%" />
+<input type="hidden" name="filename" value="%TMPL:P{"filename"}%" />
 %TMPL:END%
 
 %TMPL:DEF{"webexport::query"}%%WEBEXPORTQUERY{default="!(topic=~'.*Template$')"}%%TMPL:END%
@@ -27,7 +29,7 @@
 %TMPL:DEF{"webexport::formtable"}%%DATATABLE{
    query="%TMPL:P{"webexport::query"}%"
    connector="dbcache"
-   web="%WEB%"
+   web="%TMPL:P{"web"}%"
    columns="%TMPL:P{"webexport::columns"}%"
    sort="TopicTitle" %TMPL:P{"webexport::titles"}%
    class="foswikiFlatTable"
@@ -71,3 +73,4 @@
 %TMPL:P{"webexport::formtable"}%
 %TMPL:P{"webexport::formoptions"}%
 %TMPL:P{"webexport::formend"}%
+%TMPL:END%
