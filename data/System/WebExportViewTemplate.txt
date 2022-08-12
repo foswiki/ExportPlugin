@@ -6,15 +6,15 @@
 %TMPL:DEF{"form"}%%TMPL:END%
 %TMPL:DEF{"metadata"}%%TMPL:END%
 %TMPL:DEF{"web"}%%WEB%%TMPL:END%
-%TMPL:DEF{"filename"}%%WEB%%TMPL:END%
+%TMPL:DEF{"filename"}%%WEBEXPORTFILENAME{default="%WEB%"}%%TMPL:END%
 
 %TMPL:DEF{"webexport::columns"}%%WEBEXPORTCOLUMNS{default="index, TopicTitle, Summary, Tag, Changed, Author"}%%TMPL:END%
 
 %TMPL:DEF{"webexport::rows"}%%WEBEXPORTROWS{default="10"}%%TMPL:END%
 
-%TMPL:DEF{"webexport::titles"}%%WEBEXPORTTIITLES{default="TopicTitle_title=\"%MAKETEXT{"Title"}%\" Summary_title=\"%MAKETEXT{"Summary"}%\" Tag_title=\"%MAKETEXT{"Tags"}%\" Changed_title=\"%MAKETEXT{"Changed"}%\" Author_title=\"%MAKETEXT{"Author"}%\""}%%TMPL:END%
+%TMPL:DEF{"webexport::titles"}%%WEBEXPORTTITLES{default="TopicTitle_title=\"%MAKETEXT{"Title"}%\" Summary_title=\"%MAKETEXT{"Summary"}%\" Tag_title=\"%MAKETEXT{"Tags"}%\" Changed_title=\"%MAKETEXT{"Changed"}%\" Author_title=\"%MAKETEXT{"Author"}%\""}%%TMPL:END%
 
-%TMPL:DEF{"webexport::title"}%<h1>%WEBEXPORTTITLE{default="%TOPIC%"}%</h1>%TMPL:END%
+%TMPL:DEF{"webexport::title"}%<h1>%WEBEXPORTTITLE{default="%TOPICTITLE%"}%</h1>%TMPL:END%
 
 %TMPL:DEF{"webexport::formstart"}%%JQREQUIRE{"pdfexport, excelexport"}%
 <form action="%SCRIPTURLPATH{"view"}%/%TMPL:P{"web"}%/%TOPIC%" class="jqExportForm">

@@ -1,7 +1,7 @@
 /*
  * jQuery excel export plugin 1.0
  *
- * Copyright (c) 2020 Michael Daum http://michaeldaumconsulting.com
+ * Copyright (c) 2020-2022 Michael Daum http://michaeldaumconsulting.com
  *
  * Licensed under the GPL license http://www.gnu.org/licenses/gpl.html
  *

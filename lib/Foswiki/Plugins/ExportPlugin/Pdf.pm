@@ -64,8 +64,8 @@ sub exportTopic {
   my $result = $this->renderHTML($web, $topic, $meta, $text);
 
   # rewrite some urls to use file://..
-  #$result =~ s/(<link[^>]+href=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
-  #$result =~ s/(<img[^>]+src=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
+  $result =~ s/(<link[^>]+href=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
+  $result =~ s/(<img[^>]+src=["'])([^"']+)(["'])/$1.$this->toFileUrl($2).$3/ge;
 
   #$this->writeDebug($result);
   my $path = $this->{htmlDir}.'/'.$web;

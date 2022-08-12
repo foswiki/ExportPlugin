@@ -848,7 +848,7 @@ msgstr "Titolo:"
 #~ "password)"
 
 #~ msgid "Cancel"
-#~ msgstr "Rinuncia"
+#~ msgstr "Annullare"
 
 #~ msgid "Cancel editing and discard changes"
 #~ msgstr "Annulla le modifiche e rinuncia ai cambiamenti"

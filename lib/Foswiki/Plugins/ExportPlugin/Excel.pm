@@ -64,7 +64,9 @@ sub getTargetPath {
   $path .= '/' . $web if defined $web;
   $path .= '/' . $topic if defined $topic;
 
-  make_path($path);
+  make_path($path, {
+    mode => $Foswiki::cfg{Store}{dirPermission}
+  });
   my $file = $path . '/' . $this->getFileName($web, $topic, $rev, $name);
 
   return wantarray ? ($path, $file) : $file;
@@ -161,6 +163,13 @@ sub exportTopic {
       $fieldDef = {
         name => 'workflowstate',
         title => 'Workflow',
+        size => 30,
+        _value => '',
+      };
+    } elsif ($fieldName eq 'qmstate') {
+      $fieldDef = {
+        name => 'qmstate',
+        title => 'Status',
         size => 30,
         _value => '',
       };
@@ -271,7 +280,11 @@ sub exportTopic {
       }
     } else {
       # virtual fields
-      if ($fieldDef->{name} eq 'workflowstate') {
+      if ($fieldDef->{name} eq 'qmstate') {
+        require Foswiki::Plugins::QMPlugin;
+        my $state = Foswiki::Plugins::QMPlugin->getCore->getState($web, $topic);
+        $fieldValue = $state ? $this->translate($state->getCurrentNode->prop("title")) : '';
+      } elsif ($fieldDef->{name} eq 'workflowstate') {
         my $workflow = $meta->get("WORKFLOW");
         $fieldValue = $workflow ? $this->translate($workflow->{name}) : '';
       } else {
